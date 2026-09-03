@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
-import { createReadStream, createWriteStream, existsSync, readdirSync } from 'node:fs';
+import { createReadStream, existsSync, readdirSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Readable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
-import { execFileSync } from 'node:child_process';
+import { promisify } from 'node:util';
+import { execFile, execFileSync } from 'node:child_process';
+
+const download = promisify(execFile);
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const manifestPath = join(repo, 'distribution/native-sources.json');
@@ -25,9 +26,7 @@ await Promise.all(Array.from({ length: 4 }, async () => {
       if (basename(item.file) !== item.file || !item.url.startsWith('https://')) throw new Error('Unsafe source descriptor');
       const path = join(directory, item.file);
       if (!existsSync(path)) {
-        const response = await fetch(item.url, { signal: AbortSignal.timeout(180000) });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        await pipeline(Readable.fromWeb(response.body), createWriteStream(`${path}.part`));
+        await download('curl', ['--fail', '--location', '--silent', '--show-error', '--retry', '3', '--max-time', '180', '--proto', '=https', '--proto-redir', '=https', '--output', `${path}.part`, item.url], { windowsHide: true });
         await rename(`${path}.part`, path);
       }
       const actual = await hash(path);

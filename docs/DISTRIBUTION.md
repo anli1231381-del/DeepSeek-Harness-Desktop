@@ -6,7 +6,7 @@
 
 ## 开发者构建
 
-需要 Node 24、Rust stable、MSVC C++ 构建工具和 Windows SDK。新克隆使用 `npm ci`，然后：
+需要 Node 24、Rust stable、MSVC C++ 构建工具和 Windows SDK；源码下载与归档使用 Windows 自带的 `curl` 和 `tar`。新克隆使用 `npm ci`，然后：
 
 ```powershell
 npm test
