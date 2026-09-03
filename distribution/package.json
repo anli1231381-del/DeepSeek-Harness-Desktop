@@ -1,0 +1,10 @@
+{
+  "name": "harness-desktop-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.1.2-alpha.5",
+    "@deepseek-ai/dsh-sdk-client": "0.1.2-alpha.5",
+    "@deepseek-ai/dsh-llm-pi-ai": "0.1.2-alpha.5"
+  }
+}

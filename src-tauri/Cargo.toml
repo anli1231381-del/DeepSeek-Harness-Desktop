@@ -1,0 +1,23 @@
+[package]
+name = "harness-desktop"
+version = "0.1.4"
+description = "Harness desktop workspace"
+edition = "2021"
+
+[lib]
+name = "harness_desktop_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["unstable"] }
+serde_json = "1"
+tokio = { version = "1", features = ["sync", "time"] }
+rfd = "0.15"
+tauri-plugin-single-instance = "2"
+dunce = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security"] }

@@ -1,0 +1,79 @@
+name: Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.20.0'
+          cache: npm
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup toolchain install stable --profile minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup default stable
+          cargo fetch --locked --manifest-path src-tauri/Cargo.toml
+      - name: Test
+        run: npm test
+      - name: Build self-contained installer and validate runtime
+        shell: pwsh
+        run: ./scripts/desktop.ps1 bundle -DistributionRoot "$env:RUNNER_TEMP/harness-desktop-distribution"
+      - name: Checksums
+        shell: pwsh
+        run: |
+          $directory = 'src-tauri/target/release/bundle/nsis'
+          if (!(Get-ChildItem -LiteralPath $directory -Filter '*.exe')) { throw 'Installer missing' }
+          Copy-Item -LiteralPath "$env:RUNNER_TEMP/harness-desktop-distribution/source-archives/native-image-sources-sharp-0.35.4.zip" -Destination $directory
+          Get-ChildItem -LiteralPath $directory -File | Where-Object Extension -In '.exe','.zip' | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          } | Set-Content -LiteralPath "$directory/SHA256SUMS.txt" -Encoding utf8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: harness-desktop-windows-x64
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/nsis/*.zip
+            src-tauri/target/release/bundle/nsis/SHA256SUMS.txt
+            THIRD_PARTY_NOTICES.md
+            distribution/NATIVE-SOURCES.md
+          if-no-files-found: error
+
+  draft-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: harness-desktop-windows-x64
+          path: release-assets
+      - name: Create reviewable draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:RELEASE_TAG -ne "v$version") { throw 'Tag and package version differ' }
+          $existingRelease = gh release view $env:RELEASE_TAG --json tagName 2>$null
+          if ($LASTEXITCODE -eq 0) { Write-Host 'Release already exists; keeping its published assets.'; exit 0 }
+          $assets = @(Get-ChildItem release-assets -Recurse -File | ForEach-Object FullName)
+          gh release create $env:RELEASE_TAG @assets --draft --title "Harness 桌面助手 $version" --notes-file docs/RELEASE_NOTES.md
