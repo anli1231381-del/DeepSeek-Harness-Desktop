@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, realpath, rm, symlink } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
@@ -29,7 +29,7 @@ test('diff file validation rejects traversal, absolute paths and nested sibling 
   const root = await mkdtemp(join(tmpdir(), 'harness-desktop-path-'));
   try {
     await writeFile(join(root, 'ok.txt'), 'ok');
-    assert.equal(await safeFile(root, 'ok.txt'), join(root, 'ok.txt'));
+    assert.equal(await safeFile(root, 'ok.txt'), await realpath(join(root, 'ok.txt')));
     await assert.rejects(safeFile(root, '../outside.txt'), /项目/);
     await assert.rejects(safeFile(root, join(root, 'ok.txt')), /相对/);
     await assert.rejects(safeFile(root, '.git/config'), /Git/);
