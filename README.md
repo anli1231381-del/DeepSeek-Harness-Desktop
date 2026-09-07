@@ -1,4 +1,4 @@
-<p align="center"><img src="public/app-icon.png" width="80" alt="蓝色工具箱图标"></p>
+<p align="center"><img src="public/app-icon.png" width="80" alt="蓝色鲸鱼图标"></p>
 
 # Harness 桌面助手
 
@@ -6,7 +6,7 @@
 
 选择文件夹、描述目标，查看 AI 的执行过程和结果；需要聊天时，一键切换到 DeepSeek 官网。界面使用中文，面向希望直接使用 AI 工具、又不想先折腾开发环境的用户。
 
-这是基于 DeepSeek Harness 的独立桌面项目，**不是 DeepSeek 官方产品**。首个公开版本为 **v0.1.4**，当前提供 Windows 10/11 x64 安装包。
+这是基于 DeepSeek Harness 的独立桌面项目，**不是 DeepSeek 官方产品**。当前版本为 **v0.2.0**，当前提供 Windows 10/11 x64 安装包。
 
 **[下载安装包](https://github.com/anli1231381-del/DeepSeek-Harness-Desktop/releases/latest)** · [快速开始](#快速开始) · [常见问题](#常见问题) · [反馈问题](https://github.com/anli1231381-del/DeepSeek-Harness-Desktop/issues)
 
@@ -19,9 +19,10 @@
 | 工作模式 | 选择本地项目，描述目标，由 Harness 执行任务，查看工作记录和回复 |
 | 对话模式 | 应用内打开 DeepSeek 官网，自行登录，无需填写 API |
 | 模式切换 | 保留工作草稿与网页会话，切换不会停止正在运行的工作任务 |
-| 模型配置 | DeepSeek、OpenAI、Anthropic 预设，自动填写地址与协议；也支持自定义兼容服务 |
+| 模型配置 | DeepSeek、OpenAI、OpenRouter、Anthropic 预设，自动填写地址与协议；也支持自定义兼容服务 |
 | 模型选择 | 填写密钥后获取模型列表，支持更换模型与手动填写模型 ID |
-| 项目与修改 | 管理项目文件夹，查看任务结果和 Git 文件差异 |
+| 文件成果 | 自动记录执行期间新增、修改、删除的文件，查看历史对比、打开文件或目录 |
+| 会话与队列 | 保存多轮历史、实时刷新执行记录，支持停止执行和取消排队 |
 | 运行环境 | 内置 Node.js 与 Harness，支持检测已有 Harness 配置 |
 | 界面外观 | 浅色、深色、跟随系统，自由色盘与 HEX 主题色，偏好自动保存 |
 
@@ -57,6 +58,14 @@
 例如：`先阅读这个项目，解释主要目录的作用，并列出可以改进的地方。`
 
 API 的权限和额度在实际请求时由服务商检查。软件不附带模型额度，DeepSeek 网页登录也不会自动变成工作模式的 API 授权。
+
+### 使用 OpenRouter
+
+在 **设置 → 模型 API → 添加 API** 中选择 **OpenRouter**，默认使用 `https://openrouter.ai/api/v1` 和 OpenAI 兼容 Chat Completions 协议。填写 OpenRouter 密钥后获取模型，选择模型并保存，再点击“使用”。也可以手动填写 OpenRouter 提供的完整模型 ID（通常为 `服务商/模型名`）。密钥继续由 Windows 加密保存。
+
+### 会话执行
+
+点击侧栏“新建会话”即可开始，无项目会话会在应用数据目录下分配独立工作目录。发送会立即保存并加入全局队列；同一时间只运行一个执行。可停止当前执行或取消等待项；停止不会回滚已修改的文件。会话切换时保留当前应用内的草稿，重启后恢复会话历史与上下文，但不会自动重跑未完成的执行。
 
 ### 我已经安装过 Harness
 

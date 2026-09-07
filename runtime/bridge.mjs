@@ -6,6 +6,14 @@ const controller = await createController({ stateFile: process.argv[2], resource
 const input = createInterface({ input: process.stdin, crlfDelay: Infinity });
 let chain = Promise.resolve();
 input.on('line', line => {
+  // Snapshot reads must remain available while a long execution holds the mutation queue.
+  try {
+    const request = line.length <= 100000 ? JSON.parse(line) : null;
+    if (request?.operation === 'snapshot') {
+      void controller.dispatch('snapshot').then(result => send({ id: request.id, result }), error => send({ id: request.id, error: String(error.message) }));
+      return;
+    }
+  } catch { /* Normal request handling below reports malformed input. */ }
   chain = chain.then(async () => {
     let request;
     try {

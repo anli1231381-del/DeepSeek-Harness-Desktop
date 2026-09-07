@@ -10,9 +10,11 @@ const presets = {
   custom: { name: '自定义 / 其他服务商', protocol: 'openai-completions', address: '' },
   deepseek: { name: 'DeepSeek', protocol: 'openai-completions', address: 'https://api.deepseek.com' },
   openai: { name: 'OpenAI', protocol: 'openai-responses', address: 'https://api.openai.com/v1' },
+  openrouter: { name: 'OpenRouter', protocol: 'openai-completions', address: 'https://openrouter.ai/api/v1' },
   anthropic: { name: 'Anthropic / Claude', protocol: 'anthropic-messages', address: 'https://api.anthropic.com' },
 } as const;
 function presetForAddress(address: string): keyof typeof presets {
+  if (/^https:\/\/openrouter\.ai\/api\/v1\/?$/.test(address.trim())) return 'openrouter';
   if (/^https:\/\/api\.deepseek\.com(?:\/(?:v1|anthropic))?\/?$/.test(address.trim())) return 'deepseek';
   if (/^https:\/\/api\.openai\.com\/v1\/?$/.test(address.trim())) return 'openai';
   if (/^https:\/\/api\.anthropic\.com\/?$/.test(address.trim())) return 'anthropic';

@@ -15,6 +15,7 @@ test('official providers fetch their real catalog path and reject mismatched Dee
     return new Response(JSON.stringify({ data: [{ id: 'first-model' }, { id: 'second-model' }] }));
   });
   for (const [baseUrl, protocol, endpoint, auth] of [
+    ['https://openrouter.ai/api/v1', 'openai-completions', 'https://openrouter.ai/api/v1/models', 'Authorization'],
     ['https://api.deepseek.com', 'openai-completions', 'https://api.deepseek.com/models', 'Authorization'],
     ['https://api.deepseek.com/anthropic', 'anthropic-messages', 'https://api.deepseek.com/models', 'Authorization'],
     ['https://api.openai.com/v1', 'openai-responses', 'https://api.openai.com/v1/models', 'Authorization'],
