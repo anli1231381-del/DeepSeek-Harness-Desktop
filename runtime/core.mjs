@@ -10,6 +10,7 @@ import { scanWorkspace, collectArtifacts, hashFile } from './artifacts.mjs';
 import { validateConnection, credential, connectionPatch } from './connections.mjs';
 import { migrateOldTasksToSnapshot } from './migration.js';
 import { fetchModels, harnessCatalog } from './discovery.mjs';
+import { createExtensionManager } from './extensions.mjs';
 
 const exec = promisify(execFile);
 const now = () => new Date().toISOString();
@@ -202,6 +203,7 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
     }
   } catch (error) { if (error.code !== 'ENOENT') throw new Error(`无法加载应用数据，原文件已保留：${errorText(error)}`); }
   let runtime = await detectRuntime(state.settings, resourceRoot);
+  const extensionManager = await createExtensionManager({ stateDirectory: dirname(stateFile), harnessPath: () => runtime.harnessPath || state.settings.harnessPath });
   const secrets = new Set();
   const redact = value => { let result = text(value); for (const secret of secrets) result = result.replaceAll(secret, '[已隐藏凭证]'); return result; };
   const failureText = error => errorText(redact(error?.message || String(error)));
@@ -253,7 +255,9 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
     if (testInject.makeHarness) return testInject.makeHarness(project);
     if (!runtime.available) throw new Error(runtime.message);
     const { DeepSeekHarness } = await import(pathToFileURL(runtime.sdk).href);
-    let route = { provider: state.settings.provider, model: state.settings.model };
+    const extensionPatches = await extensionManager.patchFiles({ projectPath: project.path });
+    const extensionEnv = extensionManager.environment();
+    let route = { provider: state.settings.provider, model: state.settings.model, patches: extensionPatches, env: { ...process.env, ...extensionEnv } };
     if (state.settings.activeConnectionId) {
       const connection = state.connections.find(item => item.id === state.settings.activeConnectionId);
       if (!connection) throw new Error('所选 API 配置不存在，请重新选择');
@@ -262,7 +266,7 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
       const patch = join(dirname(stateFile), 'model.patch.yml');
       await mkdir(dirname(stateFile), { recursive: true });
       await writeFile(patch, JSON.stringify(connectionPatch(connection)), { mode: 0o600 });
-      route = { provider: `desktop-${connection.id}`, model: connection.model, patches: [patch], maxTokens: 4096, env: { ...process.env, HARNESS_DESKTOP_MODEL_KEY: key } };
+      route = { provider: `desktop-${connection.id}`, model: connection.model, patches: [patch, ...extensionPatches], maxTokens: 4096, env: { ...process.env, ...extensionEnv, HARNESS_DESKTOP_MODEL_KEY: key } };
     }
     return new DeepSeekHarness({ dshBin: runtime.bin, cwd: project.path, processCwd: project.path, ...route, initializeTimeoutMs: 30000, requestTimeoutMs: 30000 });
   }
@@ -402,6 +406,7 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
           persist().catch(error => { running.error = failureText(error); onChanged(); });
         },
       });
+      extensionManager.markLoaded(project.path);
       if (!job.cancelled) {
         const events = result.events || [];
         const response = redact(result.finalResponse || events.filter(e => e.type === 'assistant/message').map(e => blocksText(e.data?.message?.content)).join('\n'));
@@ -443,6 +448,7 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
       if (closing) throw new Error('应用正在关闭');
       if (cleanupFailure && !['snapshot', 'changes', 'diff', 'artifact_details', 'open_artifact'].includes(operation)) throw new Error(runtime.message);
       if (!params || typeof params !== 'object' || Array.isArray(params)) throw new Error('操作参数无效');
+      if (operation.startsWith('skill_') || operation.startsWith('mcp_') || operation.startsWith('github_') || operation === 'extensions_snapshot' || operation === 'git_detect') return extensionManager.dispatch(operation, params);
       switch (operation) {
         case 'snapshot': return snapshot();
         case 'artifact_details': {
@@ -538,7 +544,11 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
           if (!input || typeof input.id !== 'string') throw new Error('session 对象无效');
           const sessions = Array.isArray(state.sessions) ? state.sessions : [];
           if (sessions.find(s => s.id === input.id)) throw new Error('session id 已存在');
-          const next = { ...input, createdAt: input.createdAt || now(), updatedAt: now() };
+          const projectId = input.projectId || null;
+          if (projectId) projectFor(projectId);
+          const workspacePath = projectId ? undefined : join(dirname(stateFile), 'workspaces', randomUUID());
+          if (workspacePath) await mkdir(workspacePath, { recursive: true });
+          const next = { ...input, projectId, workspacePath, createdAt: input.createdAt || now(), updatedAt: now() };
           await replaceField('sessions', [next, ...sessions]);
           return snapshot();
         }

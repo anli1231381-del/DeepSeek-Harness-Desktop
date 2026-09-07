@@ -60,7 +60,7 @@ try {
   page.setDefaultTimeout(15000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.getByRole('heading', { name: '今天，想完成什么？' }).waitFor();
+  await page.getByLabel('消息输入').waitFor();
   const initial = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('bridge', { operation: 'snapshot', params: {} }));
   assert.equal(initial.runtime.available, true, initial.runtime.message);
   assert.equal(initial.runtime.source, process.env.HARNESS_SMOKE_HARNESS ? 'local' : 'bundled');
@@ -82,7 +82,7 @@ try {
   await page.keyboard.press('Escape');
   if (process.env.HARNESS_SMOKE_CHAT) await verifyChat(page, context, app.pid);
   await page.evaluate(path => window.__TAURI_INTERNALS__.invoke('bridge', { operation: 'add_project', params: { path } }), project);
-  await page.getByRole('combobox', { name: '当前项目' }).selectOption({ label: '联通测试项目' });
+  await page.getByRole('combobox', { name: '关联项目（可选）' }).selectOption({ label: '联通测试项目' });
   await page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: '设置', exact: true }).click();
   await page.setViewportSize({ width: 960, height: 680 });
   await page.getByRole('button', { name: '添加 API', exact: true }).click();
@@ -119,24 +119,23 @@ try {
   await page.getByRole('button', { name: '检测并验证连接' }).click();
   await page.getByText('运行环境已就绪，可以开始任务', { exact: true }).waitFor({ timeout: 45000 });
   await page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: '首页', exact: true }).click();
-  await page.locator('textarea').fill('仅回复一句确认文字，不调用工具。');
-  await page.getByRole('button', { name: '开始任务', exact: true }).click();
+  await page.getByLabel('消息输入').fill('仅回复一句确认文字，不调用工具。');
+  await page.getByRole('button', { name: '发送', exact: true }).click();
   if (process.env.HARNESS_SMOKE_CHAT) {
     await page.getByRole('button', { name: '对话模式', exact: true }).click();
     for (let i = 0; i < 100 && !releaseModelReply; i++) await delay(200);
     assert.ok(releaseModelReply, 'Task reaches the model while chat mode is visible');
     const duringChat = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('bridge', { operation: 'snapshot' }));
-    assert.equal(duringChat.tasks[0].status, 'running');
+    assert.equal(duringChat.executions.at(-1).status, 'running');
     releaseModelReply(); releaseModelReply = undefined;
-    await page.waitForFunction(async () => (await window.__TAURI_INTERNALS__.invoke('bridge', { operation: 'snapshot' })).tasks[0].status === 'completed');
+    await page.waitForFunction(async () => (await window.__TAURI_INTERNALS__.invoke('bridge', { operation: 'snapshot' })).executions.at(-1).status === 'succeeded');
     await page.getByRole('button', { name: '工作模式', exact: true }).click();
     console.log('PASS: running work task completes while official chat remains visible');
   }
-  await page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: '任务', exact: true }).click();
   await page.getByText('桌面端联通测试完成。', { exact: true }).waitFor({ timeout: 60000 });
   assert.equal(requests, 1); assert.equal(requestModel, 'custom-native-model'); assert.equal(requestKey, 'Bearer native-custom-key');
   const completed = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('bridge', { operation: 'snapshot', params: {} }));
-  assert.equal(completed.tasks[0].status, 'completed');
+  assert.equal(completed.executions.at(-1).status, 'succeeded');
   await page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: /^修改/ }).click();
   if (process.env.HARNESS_SMOKE_ISOLATED) await page.getByText(/尚未安装 Git，任务仍可使用/).first().waitFor();
   else { await page.getByRole('button', { name: /welcome.txt/ }).click(); await page.getByLabel('文件差异').getByText(/这是用于验证修改预览/).waitFor(); }
@@ -152,7 +151,7 @@ try {
   await page.getByText('本地运行环境已断开，请重新启动应用。', { exact: true }).first().waitFor();
   assert.equal(await page.getByText('连接已验证', { exact: true }).count(), 0);
   }
-  console.log(JSON.stringify({ result: 'PASS', checks: ['native startup', 'bundled Harness and Node detection', 'SDK handshake', 'real IPC task with local model stub', 'task events and response', process.env.HARNESS_SMOKE_ISOLATED ? 'missing Git guidance' : 'Git file preview', 'project navigation', 'custom color picker persistence', 'API form, selection and actual model request'], taskEvents: completed.tasks[0].activities.length, localModelRequests: requests, screenshots: [resolve('test-results/desktop-light.png'), resolve('test-results/desktop-dark.png')] }, null, 2));
+  console.log(JSON.stringify({ result: 'PASS', checks: ['native startup', 'bundled Harness and Node detection', 'SDK handshake', 'real IPC conversation with local model stub', 'execution events and response', process.env.HARNESS_SMOKE_ISOLATED ? 'missing Git guidance' : 'Git file preview', 'project navigation', 'custom color picker persistence', 'API form, selection and actual model request'], executionEvents: completed.executions.at(-1).logs.length, localModelRequests: requests, screenshots: [resolve('test-results/desktop-light.png'), resolve('test-results/desktop-dark.png')] }, null, 2));
 } finally {
   if (!exited) {
     // Tauri also owns small message windows; close the actual application window.

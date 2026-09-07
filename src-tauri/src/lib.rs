@@ -43,6 +43,13 @@ async fn chat_view(caller: tauri::Webview, state: tauri::State<'_, ChatViewState
         view.show().map_err(|_| "无法显示对话页")?;
     } else {
         let builder = tauri::webview::WebviewBuilder::new("deepseek-chat", tauri::WebviewUrl::External(CHAT_URL.parse().unwrap()))
+            .on_page_load(|view, payload| {
+                let status = match payload.event() {
+                    tauri::webview::PageLoadEvent::Started => "loading",
+                    tauri::webview::PageLoadEvent::Finished => "loaded",
+                };
+                let _ = view.emit_to("main", "chat-load", status);
+            })
             .on_navigation(|url| url.scheme() == "https")
             .on_new_window(|url, _| if url.scheme() == "https" { tauri::webview::NewWindowResponse::Allow } else { tauri::webview::NewWindowResponse::Deny })
             .disable_drag_drop_handler();
@@ -52,10 +59,13 @@ async fn chat_view(caller: tauri::Webview, state: tauri::State<'_, ChatViewState
 }
 
 #[tauri::command]
-async fn reload_chat(caller: tauri::Webview, state: tauri::State<'_, ChatViewState>) -> Result<(), String> {
+async fn reload_chat(caller: tauri::Webview, state: tauri::State<'_, ChatViewState>, recreate: Option<bool>) -> Result<(), String> {
     require_local_view(&caller)?;
     let _guard = state.0.lock().await;
-    if let Some(view) = caller.get_webview("deepseek-chat") { view.reload().map_err(|_| "无法刷新对话页")?; }
+    if let Some(view) = caller.get_webview("deepseek-chat") {
+        if recreate.unwrap_or(false) { view.close().map_err(|_| "无法重新打开对话页")?; }
+        else { view.reload().map_err(|_| "无法刷新对话页")?; }
+    }
     Ok(())
 }
 

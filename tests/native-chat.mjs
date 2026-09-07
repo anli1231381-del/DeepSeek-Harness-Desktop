@@ -47,7 +47,7 @@ export async function verifyChat(page, context, pid) {
   await page.waitForTimeout(500);
   // WebView2 can keep document.visibilityState visible even when its native HWND is hidden.
   assert.equal((await windows('work-window')).find(view => view.id === chatHandle).visible, false);
-  await page.getByLabel('描述任务目标').fill('工作模式草稿');
+  await page.getByLabel('消息输入').fill('工作模式草稿');
   await page.getByRole('button', { name: '对话模式', exact: true }).click();
   assert.equal((await windows('chat-restored')).find(view => view.id === chatHandle).visible, true);
   assert.equal(await chat.evaluate(() => window.__modeSmokeMarker), 'retained', 'Switching must not reload the website');
@@ -58,6 +58,6 @@ export async function verifyChat(page, context, pid) {
   await page.getByRole('button', { name: '刷新网页', exact: true }).click();
   await chat.waitForFunction(() => window.__modeSmokeMarker === undefined);
   await page.getByRole('button', { name: '工作模式', exact: true }).click();
-  assert.equal(await page.getByLabel('描述任务目标').inputValue(), '工作模式草稿');
+  assert.equal(await page.getByLabel('消息输入').inputValue(), '工作模式草稿');
   console.log('PASS: native official website, remote IPC denied, retained WebView, explicit reload and independent work draft');
 }
