@@ -46,6 +46,8 @@ test('default home chats without a project and preserves conversation when assoc
     await page.screenshot({ path: 'test-results/deepseek-login-popover.png', fullPage: true });
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: '外观' }).click();
+    await page.getByRole('radio', { name: '深色', exact: true }).check();
+    await page.getByRole('radio', { name: '浅色', exact: true }).check();
     await page.getByLabel('主题色 HEX').fill('#e76f51');
     assert.match(await page.locator('html').evaluate(node => node.style.getPropertyValue('--sidebar')), /#e76f51/);
     await page.keyboard.press('Escape');

@@ -69,9 +69,13 @@ try {
   await page.getByRole('radio', { name: '深色', exact: true }).check();
   await page.getByLabel('主题色色盘', { exact: true }).fill('#d92e87');
   assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
-  const colors = await page.evaluate(() => ({ background: getComputedStyle(document.documentElement).backgroundColor, foreground: getComputedStyle(document.body).color }));
-  assert.ok(colors.background.match(/\d+/g).slice(0, 3).map(Number).every(value => value < 80), `Dark canvas: ${colors.background}`);
-  assert.ok(colors.foreground.match(/\d+/g).slice(0, 3).map(Number).every(value => value > 180), `Readable text: ${colors.foreground}`);
+  const colors = await page.evaluate(() => {
+    const channels = value => { const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1; const context = canvas.getContext('2d'); context.fillStyle = value; context.fillRect(0, 0, 1, 1); return [...context.getImageData(0, 0, 1, 1).data.slice(0, 3)]; };
+    const style = getComputedStyle(document.documentElement);
+    return { background: channels(style.backgroundColor), foreground: channels(getComputedStyle(document.body).color) };
+  });
+  assert.ok(colors.background.every(value => value < 80), `Dark canvas: ${colors.background}`);
+  assert.ok(colors.foreground.every(value => value > 180), `Readable text: ${colors.foreground}`);
   await page.reload();
   await page.getByRole('button', { name: '外观', exact: true }).waitFor();
   assert.equal(await page.locator('html').getAttribute('data-accent'), '#d92e87');

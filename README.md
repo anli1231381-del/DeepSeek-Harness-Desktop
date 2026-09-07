@@ -6,7 +6,7 @@
 
 选择文件夹、描述目标，查看 AI 的执行过程和结果；需要聊天时，一键切换到 DeepSeek 官网。界面使用中文，面向希望直接使用 AI 工具、又不想先折腾开发环境的用户。
 
-这是基于 DeepSeek Harness 的独立桌面项目，**不是 DeepSeek 官方产品**。当前版本为 **v0.3.0**，当前提供 Windows 10/11 x64 安装包。
+这是基于 DeepSeek Harness 的独立桌面项目，**不是 DeepSeek 官方产品**。当前版本为 **v0.3.1**，当前提供 Windows 10/11 x64 安装包。
 
 **[下载安装包](https://github.com/anli1231381-del/DeepSeek-Harness-Desktop/releases/latest)** · [快速开始](#快速开始) · [常见问题](#常见问题) · [反馈问题](https://github.com/anli1231381-del/DeepSeek-Harness-Desktop/issues)
 
