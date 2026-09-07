@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, unlink, rename } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, unlink, rename, realpath } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createController } from '../runtime/core.mjs';
@@ -35,13 +35,13 @@ test('captures only this execution changes and opens original artifact locations
     assert.match(changed.diff, /\+after/);
     await app.dispatch('save_session', { session: { id: 's', projectId: null } });
     await app.dispatch('open_artifact', { artifactId: changed.id });
-    assert.equal(opened[0][0], join(project, 'changed.txt'));
+    assert.equal(opened[0][0], await realpath(join(project, 'changed.txt')));
     await writeFile(join(project, 'changed.txt'), 'later edit');
     assert.equal((await app.dispatch('artifact_details', { artifactId: changed.id })).availability, 'modified');
     const deleted = snapshot.artifacts.find(a => a.changeType === 'deleted');
     await assert.rejects(app.dispatch('open_artifact', { artifactId: deleted.id }), /不存在/);
     await app.dispatch('open_artifact', { artifactId: deleted.id, location: true });
-    assert.equal(opened.at(-1)[0], project);
+    assert.equal(opened.at(-1)[0], await realpath(project));
     await app.dispatch('add_artifact', { sessionId: 's', artifact: { id: 'bad', executionId: 'e', path: '../state.json', workspacePath: project } });
     await assert.rejects(app.dispatch('open_artifact', { artifactId: 'bad' }), /超出/);
     await rename(project, project + '-moved');
