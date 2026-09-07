@@ -95,7 +95,7 @@ test('SessionView real runtime integration', async () => {
     assert.equal(await page.isVisible('text=请检查迁移逻辑'), true);
     assert.equal(await page.isVisible('text=已发现问题，准备修复'), true);
 
-    await page.click('text=执行过程');
+    await page.click('.execution-toggle');
     await page.waitForSelector('text=搜索代码');
     assert.equal(await page.isVisible('text=src/runtime/core.mjs'), true);
 

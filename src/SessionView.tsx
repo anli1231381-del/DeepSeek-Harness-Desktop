@@ -6,7 +6,7 @@ import MessageTimeline from './MessageTimeline';
 import FixedComposer from './FixedComposer';
 import { bridge, chooseFolder, desktop, onAppEvent } from './api';
 
-export default function SessionView({ currentSessionId }: { currentSessionId: string }) {
+export default function SessionView({ currentSessionId, onOpenExtensions }: { currentSessionId: string; onOpenExtensions?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState('');
@@ -69,7 +69,7 @@ export default function SessionView({ currentSessionId }: { currentSessionId: st
       <div className="session-body">
         {error ? <div role="alert">加载会话失败：{error}</div> : loading ? <div className="loading">正在加载会话…</div> : <MessageTimeline messages={messages} executions={executions} artifacts={artifacts} />}
       </div>
-      <FixedComposer key={currentSessionId} sessionId={currentSessionId} executions={executions} onChanged={() => setRevision(v => v + 1)} />
+      <FixedComposer key={currentSessionId} sessionId={currentSessionId} executions={executions} onChanged={() => setRevision(v => v + 1)} onOpenExtensions={onOpenExtensions} />
     </section>
   );
 }

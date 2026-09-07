@@ -15,7 +15,8 @@ try {
   });
   await page.goto('http://127.0.0.1:1420');
   await page.getByLabel('描述任务目标').fill('这份工作草稿应当保留');
-  await page.getByRole('button', { name: '对话模式', exact: true }).click();
+  await page.getByRole('button', { name: '登录 DeepSeek', exact: true }).click();
+  await page.getByRole('button', { name: '打开官方登录', exact: true }).click();
   await page.getByRole('heading', { name: 'DeepSeek 对话', exact: true }).waitFor();
   await page.waitForFunction(() => window.modeCalls.some(call => call.command === 'chat_view' && call.visible && call.width > 400 && call.height > 300));
   await page.getByRole('button', { name: '外观', exact: true }).click();

@@ -54,11 +54,11 @@ test('SessionView mock end-to-end UI', async () => {
     assert.equal(await page.isVisible('text=已发现问题，准备修复'), true);
 
     // Execution toggle exists
-    await page.waitForSelector('text=执行过程');
-    assert.equal(await page.isVisible('text=执行过程'), true);
+    await page.waitForSelector('.execution-toggle');
+    assert.match(await page.locator('.execution-toggle').innerText(), /用时/);
 
     // Expand execution and check logs and artifact
-    await page.click('text=执行过程');
+    await page.click('.execution-toggle');
     await page.waitForSelector('text=搜索代码');
     assert.equal(await page.isVisible('text=搜索代码'), true);
     // Artifact path shown

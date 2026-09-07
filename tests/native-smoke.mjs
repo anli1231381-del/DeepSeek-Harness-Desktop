@@ -122,7 +122,8 @@ try {
   await page.getByLabel('消息输入').fill('仅回复一句确认文字，不调用工具。');
   await page.getByRole('button', { name: '发送', exact: true }).click();
   if (process.env.HARNESS_SMOKE_CHAT) {
-    await page.getByRole('button', { name: '对话模式', exact: true }).click();
+    await page.getByRole('button', { name: '登录 DeepSeek', exact: true }).click();
+    await page.getByRole('button', { name: '打开官方登录', exact: true }).click();
     for (let i = 0; i < 100 && !releaseModelReply; i++) await delay(200);
     assert.ok(releaseModelReply, 'Task reaches the model while chat mode is visible');
     const duringChat = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('bridge', { operation: 'snapshot' }));

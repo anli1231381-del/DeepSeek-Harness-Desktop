@@ -6,7 +6,8 @@ import { resolve } from 'node:path';
 // Run from native-smoke.mjs with a fresh WebView profile; no personal login is used.
 export async function verifyChat(page, context, pid) {
   const windows = async name => JSON.parse((await promisify(execFile)('pwsh', ['-NoProfile', '-NonInteractive', '-File', resolve('tests/native-window.ps1'), '-TargetPid', String(pid), '-Screenshot', resolve(`test-results/${name}.png`)], { windowsHide: true })).stdout);
-  await page.getByRole('button', { name: '对话模式', exact: true }).click();
+  await page.getByRole('button', { name: '登录 DeepSeek', exact: true }).click();
+  await page.getByRole('button', { name: '打开官方登录', exact: true }).click();
   await page.getByRole('heading', { name: 'DeepSeek 对话', exact: true }).waitFor();
   let chat;
   await assert.doesNotReject(async () => {
@@ -48,7 +49,8 @@ export async function verifyChat(page, context, pid) {
   // WebView2 can keep document.visibilityState visible even when its native HWND is hidden.
   assert.equal((await windows('work-window')).find(view => view.id === chatHandle).visible, false);
   await page.getByLabel('消息输入').fill('工作模式草稿');
-  await page.getByRole('button', { name: '对话模式', exact: true }).click();
+  await page.getByRole('button', { name: '登录 DeepSeek', exact: true }).click();
+  await page.getByRole('button', { name: '打开官方登录', exact: true }).click();
   assert.equal((await windows('chat-restored')).find(view => view.id === chatHandle).visible, true);
   assert.equal(await chat.evaluate(() => window.__modeSmokeMarker), 'retained', 'Switching must not reload the website');
   assert.equal(context.pages().filter(candidate => candidate.url().startsWith('https://chat.deepseek.com/')).length, 1);

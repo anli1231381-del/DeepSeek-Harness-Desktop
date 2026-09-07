@@ -25,7 +25,8 @@ test('chat reports native errors above the child viewport and recreates on recov
       };
     });
     await page.goto(BASE);
-    await page.getByRole('button', { name: '对话模式', exact: true }).click();
+    await page.getByRole('button', { name: '登录 DeepSeek', exact: true }).click();
+    await page.getByRole('button', { name: '打开官方登录', exact: true }).click();
     const status = page.locator('.chat-toolbar [role="status"]');
     try { await status.filter({ hasText: 'fixture navigation failure' }).waitFor({ timeout: 5000 }); }
     catch (error) { console.log(await page.evaluate(() => ({ calls: window.calls, text: document.body.innerText, rect: document.querySelector('.chat-viewport')?.getBoundingClientRect().toJSON() }))); throw error; }

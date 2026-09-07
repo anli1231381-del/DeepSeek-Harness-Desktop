@@ -29,10 +29,26 @@ test('default home chats without a project and preserves conversation when assoc
       } };
     });
     await page.goto(BASE);
+    assert.equal(await page.getByRole('group', { name: '切换模式' }).count(), 0);
     const input = page.getByRole('textbox', { name: '消息输入' });
     await input.fill('先讨论小游戏');
     await page.getByRole('button', { name: '发送', exact: true }).click();
     await page.getByText('回复 1', { exact: true }).waitFor();
+    assert.equal(await page.locator('.message.user .message-bubble').count(), 1);
+    assert.equal(await page.locator('.message.assistant .message-bubble').count(), 1);
+    assert.equal(await page.locator('.message.assistant .message-role').count(), 0);
+    const process = page.getByRole('button', { name: /用时/ }).first();
+    if (await process.getAttribute('aria-expanded') === 'false') await process.click();
+    await page.getByText('来自真实执行事件与工具记录').waitFor();
+    await page.getByRole('button', { name: '登录 DeepSeek' }).click();
+    await page.getByRole('dialog', { name: '连接 DeepSeek 账号' }).waitFor();
+    assert.equal(await page.getByRole('button', { name: '工作模式 API 设置' }).count(), 1);
+    await page.screenshot({ path: 'test-results/deepseek-login-popover.png', fullPage: true });
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: '外观' }).click();
+    await page.getByLabel('主题色 HEX').fill('#e76f51');
+    assert.match(await page.locator('html').evaluate(node => node.style.getPropertyValue('--sidebar')), /#e76f51/);
+    await page.keyboard.press('Escape');
     await input.fill('继续讨论');
     await page.getByRole('button', { name: '发送', exact: true }).click();
     await page.getByText('回复 2', { exact: true }).waitFor();
@@ -53,6 +69,7 @@ test('default home chats without a project and preserves conversation when assoc
     assert.equal(await page.getByText('回复 3', { exact: true }).count(), 0);
     await page.getByTestId('session-' + original).click();
     await page.getByText('回复 3', { exact: true }).waitFor();
+    await page.screenshot({ path: 'test-results/conversation-redesign.png', fullPage: true });
     assert.equal(await page.getByRole('button', { name: '开始任务', exact: true }).count(), 0);
   } finally { await app.close(); await browser.close(); }
 });

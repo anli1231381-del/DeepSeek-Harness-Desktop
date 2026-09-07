@@ -43,7 +43,7 @@ export default function SessionSidebar({ onSelect, currentSessionId }: { onSelec
 
   return <div className="session-sidebar">
     {error && <p role="alert">{error}</p>}
-    <button className="button" disabled={!desktop} onClick={() => void create()}>新建会话</button>
+    <button className="button primary new-session-button" disabled={!desktop} onClick={() => void create()}>＋ 新建对话</button>
     <div className="session-group">
       <div className="group-heading"><FolderOpen size={14} /><strong>未关联项目</strong></div>
       <div className="group-list">{unlinked.length ? unlinked.map(renderSession) : <div className="muted">无未关联会话</div>}</div>

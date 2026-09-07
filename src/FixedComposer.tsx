@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { bridge } from './api';
 import type { Execution } from './coreModels';
+import { ArrowUp, Paperclip, Plug, Sparkles } from 'lucide-react';
 
 const drafts = new Map<string, string>();
 
 function genId() { try { return crypto.randomUUID(); } catch { return `${Date.now()}-${Math.floor(Math.random()*100000)}`; } }
 
-export default function FixedComposer({ sessionId, executions, onChanged }: { sessionId: string; executions: Execution[]; onChanged: () => void }) {
+export default function FixedComposer({ sessionId, executions, onChanged, onOpenExtensions }: { sessionId: string; executions: Execution[]; onChanged: () => void; onOpenExtensions?: () => void }) {
   const [value, setValue] = useState(() => drafts.get(sessionId) || '');
   const [sending, setSending] = useState(false);
   const [stopping, setStopping] = useState(false);
@@ -52,10 +53,11 @@ export default function FixedComposer({ sessionId, executions, onChanged }: { se
   return (
     <div className="fixed-composer">
       <form onSubmit={submit}>
-        <textarea placeholder="向当前会话发送消息…" aria-label="消息输入" value={value} disabled={sending} onChange={e => change(e.target.value)} />
+        <div className="composer-input-row"><Paperclip size={19} aria-hidden="true" /><textarea placeholder="继续描述需求，或直接追问…" aria-label="消息输入" value={value} disabled={sending} onChange={e => change(e.target.value)} /></div>
         {pending.length > 0 && <p role="status">{pending.some(e => e.status === 'running') ? '执行中，可继续发送需求排队处理。' : '等待执行，可继续发送需求。'} 当前会话待处理 {pending.length} 项。</p>}
-        <div className="composer-actions"><button className="button primary" disabled={sending}>{sending ? '发送中…' : '发送'}</button>{active && <button className="button" type="button" disabled={stopping} onClick={() => void stop()}>{stopping ? '正在停止…' : active.status === 'running' ? '停止执行' : '取消排队'}</button>}<button className="button" type="button" onClick={() => change('')} disabled={sending}>清除</button></div>
+        <div className="composer-actions"><div className="composer-tools"><button type="button" onClick={onOpenExtensions}><Sparkles size={14} />Skills</button><button type="button" onClick={onOpenExtensions}><Plug size={14} />MCP</button></div><div className="composer-submit-actions">{active && <button className="button" type="button" disabled={stopping} onClick={() => void stop()}>{stopping ? '正在停止…' : active.status === 'running' ? '停止执行' : '取消排队'}</button>}<button className="button primary composer-send" aria-label="发送" disabled={sending || !value.trim()}>{sending ? '发送中…' : <>发送 <ArrowUp size={15} /></>}</button></div></div>
       </form>
+      <p className="composer-note">无需关联项目也能交流；需要操作文件时再选择项目。</p>
     </div>
   );
 }

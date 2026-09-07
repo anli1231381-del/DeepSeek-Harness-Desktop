@@ -18,6 +18,11 @@ export function applyColor(color: string, dark: boolean) {
   root.style.setProperty('--on-accent', luminance(channels) > .179 ? '#101217' : '#ffffff');
   root.style.setProperty('--accent-soft', `color-mix(in srgb, ${color} ${dark ? 18 : 9}%, var(--surface))`);
   root.style.setProperty('--accent-border', `color-mix(in srgb, ${color} 35%, var(--line))`);
+  root.style.setProperty('--bg', `color-mix(in srgb, ${color} ${dark ? 4 : 2}%, ${dark ? '#171a20' : '#fafbfd'})`);
+  root.style.setProperty('--surface', `color-mix(in srgb, ${color} ${dark ? 5 : 1}%, ${dark ? '#20242c' : '#ffffff'})`);
+  root.style.setProperty('--sidebar', `color-mix(in srgb, ${color} ${dark ? 10 : 5}%, ${dark ? '#1b1e25' : '#f6f7f9'})`);
+  root.style.setProperty('--soft', `color-mix(in srgb, ${color} ${dark ? 11 : 6}%, ${dark ? '#272c35' : '#f5f7fa'})`);
+  root.style.setProperty('--line', `color-mix(in srgb, ${color} ${dark ? 15 : 10}%, ${dark ? '#343945' : '#e2e5eb'})`);
 }
 
 export default function ColorPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
