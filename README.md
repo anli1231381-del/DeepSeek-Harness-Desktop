@@ -2,15 +2,23 @@
 
 # Harness 桌面助手
 
-**把 AI 工作与日常对话放进一个简单的桌面应用。**
+**把 AI 工作与日常对话放进一个简单的桌面应用。** · [English](README.en.md)
 
-选择文件夹、描述目标，查看 AI 的执行过程和结果；需要聊天时，一键切换到 DeepSeek 官网。界面使用中文，面向希望直接使用 AI 工具、又不想先折腾开发环境的用户。
+不选项目也能连续交流，需要处理文件时再关联文件夹。每次工作都会显示真实操作步骤，出错时指出失败阶段并提供重试。界面支持中文与英文。
 
-这是基于 DeepSeek Harness 的独立桌面项目，**不是 DeepSeek 官方产品**。当前版本为 **v0.3.1**，当前提供 Windows 10/11 x64 安装包。
+这是基于 DeepSeek Harness 的独立桌面项目，**不是 DeepSeek 官方产品**。当前版本为 **v0.4.0**，提供 Windows 10/11 x64 安装包。
 
 **[下载安装包](https://github.com/anli1231381-del/DeepSeek-Harness-Desktop/releases/latest)** · [快速开始](#快速开始) · [常见问题](#常见问题) · [反馈问题](https://github.com/anli1231381-del/DeepSeek-Harness-Desktop/issues)
 
 ![工作模式](docs/images/work.png)
+
+<details><summary>English interface</summary>
+
+![English projects screen](docs/images/work-en.png)
+
+![English environment check](docs/images/environment-en.png)
+
+</details>
 
 ## 可以做什么
 
@@ -26,6 +34,10 @@
 | 扩展管理 | 导入本地或 GitHub Skill，管理 MCP 服务，选择全局或项目范围并检测加载状态 |
 | Git 环境 | 检测本机 Git、显示版本并提供安装引导 |
 | 运行环境 | 内置 Node.js 与 Harness，支持检测已有 Harness 配置 |
+| 自动体检 | 启动后逐项检查桌面界面、Node.js、Harness、Git 和模型连接；失败时显示具体阶段与原因 |
+| Git 补齐 | 未安装 Git 时可调用 Windows Winget 一键安装，并保留 Git 官方下载入口 |
+| 工作过程 | 展示工作目录、Harness 启动、工具与目标、成果捕获；失败步骤可复制错误或再次执行 |
+| 界面语言 | 中文、English 一键切换并自动保存选择 |
 | 界面外观 | 浅色、深色、跟随系统，自由色盘与 HEX 主题色，偏好自动保存 |
 
 ## 下载安装
@@ -36,7 +48,7 @@
 
 普通用户只需要安装包。GitHub 的 **Code → Download ZIP** 和 Release 中的源码压缩包用于开发，不能直接当作软件运行。
 
-安装包已包含 Node.js 和 DeepSeek Harness，无需预先安装 Node、npm、Rust 或 Harness。若电脑缺少 WebView2，安装器会联网补齐。官网对话和远程模型服务都需要联网。
+安装包已包含 Node.js 和 DeepSeek Harness，无需预先安装 Node、npm、Rust 或 Harness。若电脑缺少 WebView2，安装器会联网补齐。软件启动后自动显示各组件状态；Git 缺失时可在“扩展”中一键安装。官网对话、远程模型服务和环境下载需要联网。
 
 ## 快速开始
 
@@ -87,7 +99,7 @@ API 的权限和额度在实际请求时由服务商检查。软件不附带模�
 
 **没有安装开发环境，也没有 Harness，可以用吗？**
 
-可以。Windows 安装包包含应用所需的 Node.js 和 Harness。具体项目若依赖 Git、Python、Java 或编译器，仍需按项目要求准备这些工具。
+可以。Windows 安装包包含应用自身所需的 Node.js 和 Harness，WebView2 由安装程序补齐，Git 可在软件内检测并一键安装。Python、Java 或编译器属于具体项目的可选依赖，软件会显示相关执行错误，但不会在没有项目需求时擅自安装。
 
 **为什么获取不到模型？**
 
@@ -107,7 +119,7 @@ API 的权限和额度在实际请求时由服务商检查。软件不附带模�
 
 **没有安装 Git，为什么看不到修改对比？**
 
-Git 差异预览需要安装 Git；其他任务功能仍可使用。移除项目列表项不会删除本地文件夹。
+Git 差异预览需要 Git；其他任务功能仍可使用。进入“扩展 → Git 环境”可检测并一键安装，失败时会显示安装阶段和官方备用入口。
 
 ## 当前版本范围
 

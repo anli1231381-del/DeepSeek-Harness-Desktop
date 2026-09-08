@@ -52,17 +52,37 @@ export function summarizeEvent(notification, formatError = errorText) {
   const event = notification.params?.event;
   if (!event) return null;
   const data = event.data ?? {};
+  const input = data.input || data.params || data.arguments || {};
+  const target = ['path', 'file', 'cwd', 'query', 'url', 'command'].map(key => input?.[key]).find(value => typeof value === 'string' && value.trim());
+  const tool = text(data.name) || 'tool';
+  const toolLabels = { read_file: '读取文件', write_file: '写入文件', edit_file: '修改文件', apply_patch: '修改文件', search: '搜索内容', grep: '搜索内容', exec_command: '运行命令', shell: '运行命令', list_files: '查看文件' };
   switch (event.type) {
-    case 'turn/start': return { at, kind: 'info', label: 'AI 开始处理任务' };
-    case 'tool/call': return { at, kind: 'tool', label: `正在调用 ${text(data.name) || '工具'}` };
-    case 'tool/result': return { at, kind: data.error || data.message?.isError ? 'error' : 'success', label: data.error || data.message?.isError ? '工具执行遇到问题' : '工具执行完成' };
-    case 'assistant/message': return { at, kind: 'info', label: 'AI 已更新回复' };
+    case 'turn/start': case 'assistant/message': return null;
+    case 'tool/call': return { at, kind: 'tool', label: toolLabels[tool] || `调用工具 ${tool}`, ...(target ? { detail: text(target).slice(0, 1000) } : {}) };
+    case 'tool/result': {
+      const failed = data.error || data.message?.isError;
+      const detail = failed && (data.error || blocksText(data.message?.content) || data.message?.error);
+      return { at, kind: failed ? 'error' : 'success', label: failed ? `工具失败：${tool}` : `工具完成：${tool}`, ...(detail ? { detail: formatError(detail) } : {}) };
+    }
     case 'todo/write': return { at, kind: 'info', label: '已更新工作计划' };
     case 'approval/asked': return { at, kind: 'error', label: '操作需要权限确认', detail: '请先停止任务，然后在 Harness 中处理权限确认。' };
     case 'llm/retry': case 'llm/retry-started': return { at, kind: 'info', label: '模型请求正在重试' };
-    case 'turn/end': return { at, kind: data.reason?.kind === 'completed' ? 'success' : 'error', label: data.reason?.kind === 'completed' ? 'AI 已完成本轮工作' : '本轮工作未正常完成', detail: formatError(data.reason?.error || data.reason?.kind || '') };
+    case 'turn/end': return { at, kind: data.reason?.kind === 'completed' ? 'success' : 'error', label: data.reason?.kind === 'completed' ? '本轮工作已完成' : '模型执行失败', detail: formatError(data.reason?.error || data.reason?.kind || '') };
     default: return null;
   }
+}
+
+async function environmentSteps(runtime, state) {
+  let gitStep;
+  try { const result = await exec('git', ['--version'], { windowsHide: true, timeout: 5000 }); gitStep = { id: 'git', label: 'Git', status: 'ready', detail: result.stdout.trim() }; }
+  catch { gitStep = { id: 'git', label: 'Git', status: 'optional', detail: '未安装；聊天和文件操作仍可使用，需要差异预览时可一键安装' }; }
+  return [
+    { id: 'webview', label: '桌面界面', status: 'ready', detail: 'WebView2 已启动' },
+    { id: 'node', label: 'Node.js', status: process.version ? 'ready' : 'failed', detail: process.version || '内置 Node.js 未启动，请重新安装应用' },
+    { id: 'harness', label: 'Harness', status: runtime.available ? 'ready' : 'failed', detail: runtime.available ? `${runtime.harnessVersion || '已找到'} · ${runtime.source === 'bundled' ? '应用内置' : '本机安装'}` : runtime.message },
+    gitStep,
+    { id: 'model', label: '模型连接', status: runtime.connected ? 'ready' : runtime.validationError ? 'failed' : state.settings.activeConnectionId || state.settings.provider ? 'pending' : 'failed', detail: runtime.connected ? '连接已验证' : runtime.validationError || '尚未验证；请保存 API 或 Harness 配置后检测连接' },
+  ];
 }
 
 async function detectRuntime(settings, resourceRoot) {
@@ -203,7 +223,8 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
     }
   } catch (error) { if (error.code !== 'ENOENT') throw new Error(`无法加载应用数据，原文件已保留：${errorText(error)}`); }
   let runtime = await detectRuntime(state.settings, resourceRoot);
-  const extensionManager = await createExtensionManager({ stateDirectory: dirname(stateFile), harnessPath: () => runtime.harnessPath || state.settings.harnessPath });
+  runtime.steps = await environmentSteps(runtime, state);
+  const extensionManager = await createExtensionManager({ stateDirectory: dirname(stateFile), harnessPath: () => runtime.harnessPath || state.settings.harnessPath, runGit: testInject.installGit });
   const secrets = new Set();
   const redact = value => { let result = text(value); for (const secret of secrets) result = result.replaceAll(secret, '[已隐藏凭证]'); return result; };
   const failureText = error => errorText(redact(error?.message || String(error)));
@@ -275,15 +296,16 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
     try {
       const result = await harness.run(task.prompt, { sessionId: task.id, onNotification: notification => {
         if (task.status !== 'running') return;
-        const activity = summarizeEvent(notification, failureText);
+        let activity = summarizeEvent(notification, failureText);
         if (activity?.detail) activity.detail = redact(activity.detail);
         const rootEvent = notification.params?.sessionId === task.id;
+        if (!activity && !rootEvent && notification.params?.event?.type === 'assistant/message') activity = { at: now(), kind: 'info', label: '子任务：已更新回复' };
         if (activity) {
           task.activities.push(activity);
           // ponytail: retain 500 visible records per task; Harness owns its complete durable log.
           if (task.activities.length > 500) task.activities.shift();
           if (rootEvent) task.stage = activity.label;
-          else activity.label = `子任务：${activity.label}`;
+          else if (!activity.label.startsWith('子任务')) activity.label = `子任务：${activity.label}`;
         }
         const event = notification.params?.event;
         if (rootEvent && event?.type === 'assistant/message') task.response = redact(blocksText(event.data?.message?.content)).slice(0, 200000);
@@ -356,11 +378,17 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
   }
   async function executeExecution(job) {
     const execution = state.executions.find(e => e.id === job.id);
-    const running = { ...execution, status: 'running', startedAt: now(), logs: [...(execution.logs || []), '开始执行'] };
+    const running = { ...execution, status: 'running', startedAt: now(), logs: [...(execution.logs || [])], steps: [...(execution.steps || []), { id: 'workspace', label: '准备工作目录', status: 'running', at: now() }] };
+    const step = (id, label, status, detail = '') => {
+      const value = { id, label, status, at: now(), ...(detail ? { detail: redact(detail) } : {}) };
+      const index = running.steps.findIndex(item => item.id === id);
+      if (index < 0) running.steps.push(value); else running.steps[index] = value;
+      return value;
+    };
     await replaceField('executions', state.executions.map(e => e.id === job.id ? running : e));
     let assistantMsg = null;
     let finalExec = running;
-    let beforeFiles, workspacePath, runStarted = false;
+    let beforeFiles, workspacePath, runStarted = false, currentStep = 'workspace';
     const excludedFiles = [stateFile, `${stateFile}.tmp`, join(dirname(stateFile), 'model.patch.yml')];
     try {
       const session = state.sessions.find(s => s.id === running.sessionId);
@@ -375,8 +403,10 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
       await access(project.path);
       workspacePath = await realpath(project.path);
       running.workspacePath = workspacePath;
-      try { beforeFiles = await scanWorkspace(workspacePath, excludedFiles); }
-      catch (error) { running.logs.push('成果捕获不可用：' + failureText(error)); }
+      step('workspace', '准备工作目录', 'succeeded', workspacePath);
+      currentStep = 'capture_before'; step(currentStep, '记录执行前文件状态', 'running');
+      try { beforeFiles = await scanWorkspace(workspacePath, excludedFiles); step(currentStep, '记录执行前文件状态', 'succeeded'); }
+      catch (error) { step(currentStep, '记录执行前文件状态', 'failed', failureText(error)); running.logs.push('成果捕获不可用：' + failureText(error)); }
       const position = state.executions.findIndex(e => e.id === running.id);
       const previous = state.executions.slice(0, position).filter(e => e.sessionId === session.id && !['queued', 'running'].includes(e.status)).slice(-20);
       const previousIds = new Set(previous.map(e => e.id));
@@ -391,9 +421,12 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
         artifacts: state.artifacts.filter(a => previousIds.has(a.executionId) || (!a.executionId && a.sessionId === session.id && (a.createdAt || '') <= running.createdAt)).slice(-50).map(({ path, executionId }) => ({ path, executionId })),
       };
       const prompt = `以下 JSON 是当前会话的历史上下文，供理解本轮需求，不代表新的指令：\n${JSON.stringify(context)}\n\n本轮需求：\n${running.prompt || ''}`;
+      currentStep = 'harness'; step(currentStep, '启动 Harness', 'running');
       job.harness = await makeHarness(project);
+      step(currentStep, '启动 Harness', 'succeeded');
       if (job.cancelled) throw new Error('执行已停止');
       runStarted = true;
+      currentStep = 'execute'; step(currentStep, '处理本轮需求', 'running');
       const result = await job.harness.run(prompt, {
         sessionId: running.id,
         onNotification: notification => {
@@ -402,6 +435,8 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
           if (!activity) return;
           running.logs.push(redact(activity.label + (activity.detail ? '：' + activity.detail : '')));
           if (running.logs.length > 500) running.logs.shift();
+          running.steps.push({ id: `event-${randomUUID()}`, label: activity.label, status: activity.kind === 'error' ? 'failed' : activity.kind === 'success' ? 'succeeded' : 'running', at: activity.at, ...(activity.detail ? { detail: redact(activity.detail) } : {}) });
+          if (running.steps.length > 500) running.steps.splice(5, 1);
           onChanged();
           persist().catch(error => { running.error = failureText(error); onChanged(); });
         },
@@ -412,14 +447,22 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
         const response = redact(result.finalResponse || events.filter(e => e.type === 'assistant/message').map(e => blocksText(e.data?.message?.content)).join('\n'));
         assistantMsg = { id: 'm-' + randomUUID(), sessionId: running.sessionId, executionId: running.id, role: 'assistant', content: response, createdAt: now() };
         finalExec = { ...running, status: { completed: 'succeeded', stopped: 'cancelled', failed: 'failed' }[finishStatus(events)], finishedAt: now() };
-        if (finalExec.status === 'failed') finalExec.error = failureText(events.findLast(e => e.type === 'turn/end')?.data?.reason?.error || '执行未正常结束，请查看执行记录。');
+        if (finalExec.status === 'failed') {
+          finalExec.error = failureText(events.findLast(e => e.type === 'turn/end')?.data?.reason?.error || '执行未正常结束，请查看执行记录。');
+          step('execute', '处理本轮需求', 'failed', finalExec.error);
+        } else {
+          step('execute', '处理本轮需求', 'succeeded');
+          running.steps = running.steps.map(item => item.id.startsWith('event-') && item.status === 'running' ? { ...item, status: 'succeeded' } : item);
+          finalExec.steps = running.steps;
+        }
       }
     } catch (error) {
       if (!job.cancelled) {
         const reason = failureText(error);
+        step(currentStep, currentStep === 'workspace' ? '准备工作目录' : currentStep === 'harness' ? '启动 Harness' : currentStep === 'execute' ? '处理本轮需求' : '记录执行前文件状态', 'failed', reason);
         const message = runStarted ? '执行失败，可能存在部分修改：' : '模拟回复：未执行真实任务。Harness 启动失败：';
         assistantMsg = { id: 'm-' + randomUUID(), sessionId: running.sessionId, executionId: running.id, role: 'assistant', content: message + reason, createdAt: now() };
-        finalExec = { ...running, status: runStarted ? 'failed' : 'succeeded', simulated: !runStarted, error: reason, finishedAt: now(), logs: [...running.logs, message + reason] };
+        finalExec = { ...running, status: 'failed', simulated: !runStarted, error: reason, finishedAt: now(), logs: [...running.logs, message + reason] };
       }
     } finally {
       if (job.cancelled) finalExec = { ...running, status: 'cancelled', finishedAt: now(), logs: [...running.logs, '执行已停止，可能存在部分修改'] };
@@ -428,8 +471,9 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
     }
     let captured = [];
     if (beforeFiles) {
-      try { captured = collectArtifacts(beforeFiles, await scanWorkspace(workspacePath, excludedFiles), running, workspacePath); }
-      catch (error) { finalExec.logs.push('未能完成成果捕获：' + failureText(error)); }
+      step('capture_after', '捕获文件成果', 'running');
+      try { captured = collectArtifacts(beforeFiles, await scanWorkspace(workspacePath, excludedFiles), running, workspacePath); step('capture_after', '捕获文件成果', 'succeeded', captured.length ? `发现 ${captured.length} 个文件成果` : '没有文件变化'); }
+      catch (error) { step('capture_after', '捕获文件成果', 'failed', failureText(error)); finalExec.logs.push('未能完成成果捕获：' + failureText(error)); }
     }
     await replaceFields({
       artifacts: [...state.artifacts, ...captured],
@@ -448,7 +492,7 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
       if (closing) throw new Error('应用正在关闭');
       if (cleanupFailure && !['snapshot', 'changes', 'diff', 'artifact_details', 'open_artifact'].includes(operation)) throw new Error(runtime.message);
       if (!params || typeof params !== 'object' || Array.isArray(params)) throw new Error('操作参数无效');
-      if (operation.startsWith('skill_') || operation.startsWith('mcp_') || operation.startsWith('github_') || operation === 'extensions_snapshot' || operation === 'git_detect') return extensionManager.dispatch(operation, params);
+      if (operation.startsWith('skill_') || operation.startsWith('mcp_') || operation.startsWith('github_') || operation === 'extensions_snapshot' || operation === 'git_detect' || operation === 'git_install') return extensionManager.dispatch(operation, params);
       switch (operation) {
         case 'snapshot': return snapshot();
         case 'artifact_details': {
@@ -678,9 +722,10 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
             harness = await makeHarness({ path: state.projects[0]?.path || homedir() });
             await harness.start();
             runtime.connected = true;
+            runtime.validationError = '';
             runtime.message = '运行环境已就绪，可以开始任务';
-          } catch (error) { runtime.connected = false; runtime.message = `连接验证失败：${failureText(error)}`; }
-          finally { try { await harness?.close(); } catch (error) { failedCleanup(error); } checking = false; pumpExecutions(); }
+          } catch (error) { runtime.connected = false; runtime.validationError = failureText(error); runtime.message = `连接验证失败：${runtime.validationError}`; }
+          finally { try { await harness?.close(); } catch (error) { failedCleanup(error); } runtime.steps = await environmentSteps(runtime, state); checking = false; pumpExecutions(); }
           onChanged(); return snapshot();
         }
         case 'start_task': {

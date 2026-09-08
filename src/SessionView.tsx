@@ -37,6 +37,13 @@ export default function SessionView({ currentSessionId, onOpenExtensions }: { cu
       await save({ projectId: added.id });
     } catch (reason) { setError(String(reason)); }
   }
+  async function retry(execution: Execution) {
+    try {
+      const id = `ex-${crypto.randomUUID()}`;
+      await bridge('create_execution', { sessionId: currentSessionId, execution: { id, triggerMessageId: execution.triggerMessageId, status: 'queued', createdAt: new Date().toISOString(), prompt: execution.prompt } });
+      await bridge('run_execution', { executionId: id }); setRevision(v => v + 1);
+    } catch (reason) { setError(String(reason)); }
+  }
   const pending = executions.some(e => ['queued', 'running'].includes(e.status));
   useEffect(() => {
     if (!pending) return;
@@ -67,7 +74,7 @@ export default function SessionView({ currentSessionId, onOpenExtensions }: { cu
     <section className="session-view card">
       <SessionHeader session={session} projects={projects} pending={pending} onProject={id => void save({ projectId: id })} onAddProject={() => void addProject()} onRename={title => void save({ title })} />
       <div className="session-body">
-        {error ? <div role="alert">加载会话失败：{error}</div> : loading ? <div className="loading">正在加载会话…</div> : <MessageTimeline messages={messages} executions={executions} artifacts={artifacts} />}
+        {error ? <div role="alert">加载会话失败：{error}</div> : loading ? <div className="loading">正在加载会话…</div> : <MessageTimeline messages={messages} executions={executions} artifacts={artifacts} onRetry={execution => void retry(execution)} />}
       </div>
       <FixedComposer key={currentSessionId} sessionId={currentSessionId} executions={executions} onChanged={() => setRevision(v => v + 1)} onOpenExtensions={onOpenExtensions} />
     </section>

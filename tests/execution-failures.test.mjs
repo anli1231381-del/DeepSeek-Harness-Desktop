@@ -21,9 +21,13 @@ for (const mode of ['setup', 'partial', 'terminal']) test(`execution ${mode} fai
     await app.dispatch('run_execution', { executionId: 'e' });
     const snapshot = await until(app, s => !s.runtime.busy && ['succeeded', 'failed'].includes(s.executions[0].status));
     const execution = snapshot.executions[0];
-    assert.equal(execution.status, mode === 'setup' ? 'succeeded' : 'failed');
+    assert.equal(execution.status, 'failed');
     assert.equal(Boolean(execution.simulated), mode === 'setup');
     if (mode === 'partial') assert.equal(snapshot.artifacts[0].path, 'partial.txt');
     if (mode === 'terminal') assert.match(execution.error, /quota exceeded/);
+    const failed = execution.steps?.find(step => step.status === 'failed');
+    assert.ok(failed, 'the failed stage must be recorded');
+    assert.equal(failed.id, mode === 'setup' ? 'harness' : 'execute');
+    assert.match(failed.detail, mode === 'setup' ? /setup unavailable/ : mode === 'partial' ? /provider disconnected/ : /quota exceeded/);
   } finally { await app.close(); }
 });

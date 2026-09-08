@@ -1,19 +1,20 @@
 # 验证记录
 
-验证版本：Windows x64 0.3.1。内置 Node.js 24.20.0、DeepSeek Harness/SDK 0.1.2-alpha.5。
+验证版本：Windows x64 0.4.0。内置 Node.js 24.20.0、DeepSeek Harness/SDK 0.1.2-alpha.5。
 
-- `tests/modes-ui.mjs`：工作草稿保留、网页显示/隐藏、窗口尺寸同步、外观浮层避让、刷新及浏览器入口通过。
-- `HARNESS_SMOKE_CHAT=1` 的原生测试：实际加载 DeepSeek 官网登录页，核对原生视图位置和尺寸，验证工作模式下网页窗口隐藏、切换后同一网页实例保留、显式刷新生效、官网无法调用本地运行时。使用独立 WebView 数据，没有登录用户账号。
-- 原生工作任务在对话模式可见期间完成；返回工作模式后可读取完整任务结果。模型响应来自本机模拟 API。
+- `npm test -- --test-concurrency=1`：46 项通过，覆盖无项目连续对话、项目关联、队列、停止与重试、结构化执行步骤、失败阶段、成果捕获、Skills、MCP、GitHub 扩展、Git 检测与安装结果、OpenRouter、语言切换及持久化、密钥加密和模型协议。
+- `npm run build`：TypeScript 检查与生产前端构建通过。
+- `cargo check --offline`：Tauri 桌面端编译检查通过。
+- 分发准备验证：内置 Node.js、Harness SDK、原生模块和 ripgrep 通过；26,886 个运行时文件无符号链接。382 份第三方源码归档和 767 个 npm/Rust 依赖声明通过核对。
+- NSIS 安装包构建通过，文件为 `Harness 桌面助手_0.4.0_x64-setup.exe`。
+- 安装包实际安装到 `D:\deepseekharness\HarnessDesktop-App-v040-release`，构建目录与安装目录的发布路径检查均通过。
+- `tests/native-smoke.mjs` 从上述安装目录启动，并使用不含 Git、Node.js 和 Harness 的隔离 `PATH`。内置运行环境检测、SDK 握手、本地模拟模型真实 IPC 请求、模型获取与切换、缺少 Git 提示、项目导航、主题色与正常关闭均通过。
+- 真实 OpenRouter 验证使用 Windows 已加密保存的连接，模型为 `openrouter/auto`。Harness 实际完成请求、创建 `verification.txt`，程序成功自动捕获该文件；验证脚本未读取或输出明文密钥。
+- 中文与英文界面测试覆盖切换、主要导航、项目页、设置页和重启后的语言持久化；README 截图来自本版实际构建界面。
 
-- `npm test -- --test-concurrency=1`：39 项通过，覆盖无项目连续对话、项目关联和会话切换、成果捕获、队列与停止、扩展隔离、MCP 配置、Skill 真实发现、OpenRouter、持久化、失败回滚、Git 路径边界、密钥加密及模型协议匹配。
-- `tests/settings-ui.mjs`：三家预设地址自动填写、密钥填写后自动加载模型、保存后重开与切换模型、旧请求隔离、手填回退、键盘操作及繁忙状态提示通过。
-- `tests/sdk-smoke.mjs`：真实 Harness 对接本机模拟服务。验证已有配置检测、DeepSeek 模型切换，以及 Chat Completions、Responses、Anthropic Messages 三种协议的实际模型与密钥路由。
-- 模型发现验证：路径拼接、认证头、Anthropic 分页、已保存密钥复用、地址变更保护、认证失败、无效响应、重定向限制与敏感信息隐藏。
-- Windows 安装包构建与实际安装到 `D:\deepseekharness\HarnessDesktop-App-v031` 通过。`tests/native-smoke.mjs` 从安装目录启动，使用独立数据和内置运行环境，验证首页连续执行、模型获取与切换、整体主题色、项目导航、Git 差异及正常关闭。
-- `scripts/verify-release.mjs` 对构建文件和实际安装文件的目录检查通过。源码清单不包含个人目录、内部开发记录、用户配置、测试产物或构建缓存。
-- 已检查浅色、深色和模型设置界面，DeepSeek 蓝色鲸鱼图标正常显示。
+## 已知边界
 
-所有模型调用均使用本机模拟服务，没有使用真实用户密钥或付费 API。官网验证停留在登录页，没有测试账号登录后的会话或第三方登录流程。尚未验证远程服务额度及长时间编码任务。本机已有 WebView2，缺少 WebView2 时的首次联网安装尚未在全新 Windows 虚拟机中测试。
-
-安装包未配置代码签名。Git、Python、Java 等具体项目工具需按项目要求安装。
+- 缺少 WebView2 时由 NSIS 安装器使用微软引导程序联网安装。本机已有 WebView2，因此未在无 WebView2 的全新虚拟机中复现该下载流程。
+- Git 一键安装通过 Windows Winget；没有 Winget 或安装失败时会显示“安装 Git”阶段的原因，并提供 Git for Windows 官方下载入口。
+- Python、Java 和编译器属于项目专用工具，不会在没有明确项目需求时自动安装。相关命令失败会显示在本轮工作步骤中。
+- 安装包尚未配置代码签名，Windows 可能显示来源提示。

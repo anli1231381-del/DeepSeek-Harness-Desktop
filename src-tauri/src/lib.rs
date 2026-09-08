@@ -185,13 +185,14 @@ async fn bridge(caller: tauri::Webview, operation: String, params: Option<Value>
     let id = state.sequence.fetch_add(1, Ordering::SeqCst);
     let (tx, rx) = oneshot::channel();
     state.pending.lock().unwrap().insert(id, tx);
+    let timeout = if operation == "git_install" { Duration::from_secs(10 * 60) } else { Duration::from_secs(60) };
     let payload = format!("{}\n", json!({"id":id,"operation":operation,"params":params.unwrap_or(json!({}))}));
     let written = {
         let mut input = state.input.lock().unwrap();
         input.as_mut().ok_or_else(|| "本地运行环境未就绪".to_string()).and_then(|stdin| stdin.write_all(payload.as_bytes()).map_err(|e| e.to_string()))
     };
     if let Err(error) = written { state.pending.lock().unwrap().remove(&id); return Err(error); }
-    match tokio::time::timeout(Duration::from_secs(60), rx).await {
+    match tokio::time::timeout(timeout, rx).await {
         Ok(Ok(value)) => value,
         _ => { state.pending.lock().unwrap().remove(&id); Err("操作超时或运行环境已退出，请重试。".into()) }
     }

@@ -36,6 +36,7 @@ export type Execution = {
   simulated?: boolean;
   error?: string;
   id: ID;
+  prompt?: string;
   sessionId: ID;
   triggerMessageId?: ID; // which message triggered this execution
   createdAt: string;
@@ -44,6 +45,7 @@ export type Execution = {
   status: ExecutionStatus;
   toolCalls?: ToolCall[];
   logs?: string[];
+  steps?: { id: string; label: string; status: 'running' | 'succeeded' | 'failed'; detail?: string; at: string }[];
 };
 
 export type ArtifactChange = 'created' | 'modified' | 'deleted' | 'renamed';

@@ -42,6 +42,14 @@ export default function ExtensionManager({ projects, currentProjectId }: { proje
     try { setGit(await bridge<GitState>('git_detect')); } catch (reason) { setError(String(reason)); }
     finally { setBusy(''); }
   }
+  async function installGit() {
+    setBusy('git-install'); setError('');
+    try {
+      const result = await bridge<GitState & { step?: string }>('git_install'); setGit(result);
+      if (result.installed) setNotice('Git 安装完成，请重新启动应用后再次检测。');
+    } catch (reason) { setError('安装 Git：' + String(reason)); }
+    finally { setBusy(''); }
+  }
   return <div className="extensions-page">
     <div className="page-title"><div><h1>扩展管理</h1><p>安装 Skill、连接 MCP，并检查 Git。启用项会在下一次对话执行时加载。</p></div><label className="scope-picker">使用范围<select value={scope} onChange={event => setScope(event.target.value as 'global' | 'project')}><option value="global">全局使用</option><option value="project" disabled={!project}>仅当前项目{project ? ` · ${project.name}` : '（请先选择项目）'}</option></select></label></div>
     {error && <div className="banner error-banner" role="alert"><XCircle size={17} />{error}</div>}
@@ -66,7 +74,7 @@ export default function ExtensionManager({ projects, currentProjectId }: { proje
       </section>
       <section className="card extension-card"><div className="card-heading"><div><RefreshCw size={19} /><h2>Git 环境</h2></div><button className="button" disabled={!!busy} onClick={() => void detectGit()}>{busy === 'git' && <LoaderCircle className="spin" size={15} />}检测 Git</button></div>
         <p className="extension-help">Git 用于文件差异预览。未安装时仍可聊天和修改文件。</p>
-        {git ? <div className={`git-result ${git.installed ? 'ready' : ''}`}><strong>{git.installed ? 'Git 已安装' : '未检测到 Git'}</strong><span>{git.version || git.message}</span>{!git.installed && <a href={git.guideUrl} target="_blank" rel="noreferrer">打开安装指南</a>}</div> : <p className="empty-line">点击检测查看当前电脑的 Git 状态。</p>}
+        {git ? <div className={`git-result ${git.installed ? 'ready' : ''}`}><strong>{git.installed ? 'Git 已安装' : '未检测到 Git'}</strong><span>{git.version || git.message}</span>{!git.installed && <div className="git-actions"><button className="button primary" disabled={!!busy} onClick={() => void installGit()}>{busy === 'git-install' && <LoaderCircle className="spin" size={15} />}一键安装 Git</button><a href={git.guideUrl} target="_blank" rel="noreferrer">打开安装指南</a></div>}</div> : <p className="empty-line">点击检测查看当前电脑的 Git 状态。</p>}
       </section>
     </div>
   </div>;

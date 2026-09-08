@@ -61,6 +61,7 @@ test('Composer -> Execution minimal closed-loop', async () => {
     await page.reload({ waitUntil: 'networkidle' });
     await page.locator('.session-body').getByText('第二次消息', { exact: true }).waitFor();
     const saved = await controller.dispatch('snapshot');
+    assert.equal(saved.sessions.length, 2);
     assert.equal(saved.messages.filter(m => m.role === 'user').length, 2);
     assert.equal(saved.executions.length, 2);
     assert.ok(saved.executions.every(e => e.sessionId === 's-1'));

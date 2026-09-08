@@ -47,7 +47,7 @@ test('session UI retains drafts, stops running work and cancels queued work with
     await page.getByRole('button', { name: '停止执行', exact: true }).waitFor();
     assert.equal(await page.locator('.execution-toggle').getAttribute('aria-expanded'), 'true');
     notify({ method: 'session.event', params: { event: { type: 'tool/call', data: { name: 'read_file' } } } });
-    await page.locator('.execution-logs').getByText('正在调用 read_file', { exact: false }).waitFor();
+    await page.locator('.execution-steps').getByText('读取文件', { exact: true }).waitFor();
     await page.getByTestId('session-b').click();
     assert.equal(await input.inputValue(), '草稿 b');
     await page.getByRole('button', { name: '发送', exact: true }).click();

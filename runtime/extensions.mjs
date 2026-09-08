@@ -13,6 +13,14 @@ const object = value => value && typeof value === 'object' && !Array.isArray(val
 const inside = (root, file) => { const part = relative(root, file); return part && part !== '..' && !part.startsWith(`..${sep}`) && !isAbsolute(part); };
 const MAX_FILES = 200, MAX_BYTES = 10 * 1024 * 1024;
 const guide = 'https://git-scm.com/downloads/win';
+export async function installGit(run = exec) {
+  try {
+    await run('winget', ['install', '--id', 'Git.Git', '-e', '--source', 'winget', '--accept-source-agreements', '--accept-package-agreements', '--silent'], { windowsHide: true, timeout: 10 * 60 * 1000, maxBuffer: 1024 * 1024 });
+    return { installed: true, step: 'install_git', version: 'Git 已安装；请重新启动应用以刷新环境', guideUrl: guide };
+  } catch (error) {
+    return { installed: false, step: 'install_git', version: '', guideUrl: guide, message: `Git 安装失败：${clean(error?.message || String(error)).slice(0, 1000)}` };
+  }
+}
 async function atomic(file, value) {
   await mkdir(dirname(file), { recursive: true });
   const temporary = `${file}.${randomUUID()}.tmp`;
@@ -51,7 +59,7 @@ export function validateMcp(input) {
   return { ...common, url: url.href, secret: stringMap(input.headers) };
 }
 
-export async function createExtensionManager({ stateDirectory, harnessPath } = {}) {
+export async function createExtensionManager({ stateDirectory, harnessPath, runGit = exec } = {}) {
   if (!stateDirectory) throw new Error('缺少扩展数据目录');
   const root = resolve(stateDirectory, 'extensions'), stateFile = resolve(stateDirectory, 'extensions.json');
   let state = { skills: [], mcpServers: [] }, env = {}, queue = Promise.resolve();
@@ -253,6 +261,7 @@ export async function createExtensionManager({ stateDirectory, harnessPath } = {
         try { const result = await exec('git', ['--version'], { windowsHide: true, timeout: 5000 }); return { installed: true, version: result.stdout.trim(), guideUrl: guide }; }
         catch { return { installed: false, version: '', guideUrl: guide, message: '未检测到 Git；可安装 Git for Windows 后重启应用。' }; }
       }
+      case 'git_install': return installGit(runGit);
       default: throw new Error('未知扩展操作');
     }
   }

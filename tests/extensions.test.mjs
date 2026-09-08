@@ -3,7 +3,33 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, rm, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createExtensionManager, validateMcp } from '../runtime/extensions.mjs';
+import { createExtensionManager, installGit, validateMcp } from '../runtime/extensions.mjs';
+
+test('Git installer reports the exact failed step and keeps the official fallback', async () => {
+  const calls = [];
+  const success = await installGit(async (file, args) => { calls.push([file, args]); return { stdout: 'ok' }; });
+  assert.equal(success.installed, true);
+  assert.equal(success.step, 'install_git');
+  assert.equal(calls[0][0], 'winget');
+  assert.ok(calls[0][1].includes('Git.Git'));
+  const failed = await installGit(async () => { throw Object.assign(new Error('winget missing'), { code: 'ENOENT' }); });
+  assert.equal(failed.installed, false);
+  assert.equal(failed.step, 'install_git');
+  assert.match(failed.message, /winget missing/);
+  assert.match(failed.guideUrl, /git-scm\.com/);
+});
+
+test('controller forwards the Git install operation used by the UI', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'harness-git-install-'));
+  try {
+    const { createController } = await import('../runtime/core.mjs');
+    const app = await createController({ stateFile: join(directory, 'state.json'), _test_inject: { installGit: async () => ({ stdout: 'installed' }) } });
+    const result = await app.dispatch('git_install');
+    assert.equal(result.installed, true);
+    assert.equal(result.step, 'install_git');
+    await app.close();
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
 
 test('MCP rejects unsupported transport and URL credentials', () => {
   assert.throws(() => validateMcp({ name: 'demo', transport: 'sse', url: 'https://example.com' }));

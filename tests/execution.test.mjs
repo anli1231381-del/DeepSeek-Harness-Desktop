@@ -15,7 +15,7 @@ test('Harness streams progress, maps success, closes on failure and labels simul
       onNotification({ method: 'session.event', params: { sessionId: 'e1', event: { type: 'tool/call', data: { name: 'read_file' } } } });
       const snap = await app.dispatch('snapshot');
       assert.equal(snap.executions[0].status, 'running');
-      assert.ok(snap.executions[0].logs.some(line => line.includes('read_file')));
+      assert.ok(snap.executions[0].logs.some(line => line.includes('读取文件')));
       return { finalResponse: 'done', events: [{ type: 'turn/end', data: { reason: { kind: 'completed' } } }] };
     }, async close() { closed++; },
   }) } });

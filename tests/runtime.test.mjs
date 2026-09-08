@@ -43,7 +43,47 @@ test('real event mapping never mistakes a failed or truncated turn for success',
   assert.equal(finishStatus([]), 'failed');
   const event = summarizeEvent({ method: 'session.event', params: { event: { type: 'tool/call', data: { name: 'read_file' } } } });
   assert.equal(event.kind, 'tool');
-  assert.match(event.label, /read_file/);
+  assert.match(event.label, /读取文件/);
+});
+
+test('work event mapping describes the observable action and target without filler updates', () => {
+  const read = summarizeEvent({ method: 'session.event', params: { event: { type: 'tool/call', data: { name: 'read_file', input: { path: 'src/App.tsx' } } } } });
+  assert.equal(read.label, '读取文件');
+  assert.equal(read.detail, 'src/App.tsx');
+  assert.equal(summarizeEvent({ method: 'session.event', params: { event: { type: 'assistant/message', data: {} } } }), null);
+  assert.equal(summarizeEvent({ method: 'session.event', params: { event: { type: 'turn/start', data: {} } } }), null);
+});
+
+test('tool result errors include the provider detail', () => {
+  const event = summarizeEvent({ method: 'session.event', params: { event: { type: 'tool/result', data: { name: 'read_file', message: { isError: true, content: [{ type: 'text', text: 'permission denied' }] } } } } });
+  assert.equal(event.kind, 'error');
+  assert.match(event.detail, /permission denied/);
+});
+
+test('startup environment reports each component and the failed step', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'harness-desktop-health-'));
+  try {
+    await writeFile(join(root, 'state.json'), JSON.stringify({ settings: { harnessPath: join(root, 'missing-harness') } }));
+    const app = await createController({ stateFile: join(root, 'state.json') });
+    const steps = (await app.dispatch('snapshot')).runtime.steps;
+    assert.deepEqual(steps.map(step => step.id), ['webview', 'node', 'harness', 'git', 'model']);
+    assert.equal(steps.find(step => step.id === 'node').status, 'ready');
+    assert.equal(steps.find(step => step.id === 'harness').status, 'failed');
+    assert.match(steps.find(step => step.id === 'harness').detail, /Harness/);
+    await app.close();
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('connection verification marks the model step with its exact error', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'harness-desktop-model-health-'));
+  try {
+    const app = await createController({ stateFile: join(root, 'state.json'), _test_inject: { makeHarness() { throw new Error('invalid provider key'); } } });
+    const snapshot = await app.dispatch('check_runtime');
+    const model = snapshot.runtime.steps.find(step => step.id === 'model');
+    assert.equal(model.status, 'failed');
+    assert.match(model.detail, /invalid provider key/);
+    await app.close();
+  } finally { await rm(root, { recursive: true, force: true }); }
 });
 
 test('failed save leaves project state unchanged and resolved Git aliases are blocked', async () => {
