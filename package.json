@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "node ./scripts/compile-migration.js && tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
     "tauri": "tauri",
     "pretest": "node ./scripts/compile-migration.js"
   },

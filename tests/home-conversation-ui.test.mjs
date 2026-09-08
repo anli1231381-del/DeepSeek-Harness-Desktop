@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
@@ -57,14 +57,15 @@ test('default home chats without a project and preserves conversation when assoc
     assert.match(prompts[1].prompt, /先讨论小游戏/);
     const original = (await app.dispatch('snapshot')).sessions[0].id;
     const projectPath = join(dir, 'game'); await mkdir(projectPath);
+    const displayedProjectPath = await realpath(projectPath);
     const added = await app.dispatch('add_project', { path: projectPath });
     await page.getByLabel('关联项目（可选）').selectOption(added.projects[0].id);
-    await page.getByText(projectPath, { exact: true }).waitFor();
+    await page.getByText(displayedProjectPath, { exact: true }).waitFor();
     await input.fill('开始制作');
     await page.getByRole('button', { name: '发送', exact: true }).click();
     await page.getByText('回复 3', { exact: true }).waitFor();
     assert.match(prompts[2].prompt, /先讨论小游戏/);
-    assert.equal(prompts[2].cwd.toLowerCase(), projectPath.toLowerCase());
+    assert.equal(prompts[2].cwd.toLowerCase(), displayedProjectPath.toLowerCase());
     assert.equal((await app.dispatch('snapshot')).sessions.find(s => s.id === original).projectId, added.projects[0].id);
     await page.getByRole('button', { name: '在 game 中新建对话', exact: true }).click();
     await page.getByText('回复 3', { exact: true }).waitFor({ state: 'detached' });

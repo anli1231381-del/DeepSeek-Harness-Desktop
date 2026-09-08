@@ -389,7 +389,7 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
     let assistantMsg = null;
     let finalExec = running;
     let beforeFiles, workspacePath, runStarted = false, currentStep = 'workspace';
-    const excludedFiles = [stateFile, `${stateFile}.tmp`, join(dirname(stateFile), 'model.patch.yml')];
+    let excludedFiles = [stateFile, `${stateFile}.tmp`, join(dirname(stateFile), 'model.patch.yml')];
     try {
       const session = state.sessions.find(s => s.id === running.sessionId);
       if (!session) throw new Error('会话不存在');
@@ -402,6 +402,8 @@ export async function createController({ stateFile, resourceRoot, onChanged = ()
       }
       await access(project.path);
       workspacePath = await realpath(project.path);
+      const stateDirectory = await realpath(dirname(stateFile)).catch(() => dirname(stateFile));
+      excludedFiles = [join(stateDirectory, basename(stateFile)), join(stateDirectory, basename(stateFile) + '.tmp'), join(stateDirectory, 'model.patch.yml')];
       running.workspacePath = workspacePath;
       step('workspace', '准备工作目录', 'succeeded', workspacePath);
       currentStep = 'capture_before'; step(currentStep, '记录执行前文件状态', 'running');
